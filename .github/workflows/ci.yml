@@ -1,0 +1,325 @@
+name: Multi-Site CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+# ============================================================================
+# Jobs
+# ============================================================================
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Job 1: Detect Sites (dynamic matrix)
+  # ──────────────────────────────────────────────
+  detect-sites:
+    name: 🔍 Detect Sites
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      count: ${{ steps.detect.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect configured sites
+        id: detect
+        run: |
+          # Scan sites/ directory for site.json files
+          SITES=()
+          for site_dir in sites/*/; do
+            if [ -f "${site_dir}site.json" ]; then
+              site_id=$(basename "$site_dir")
+              # Validate the site config
+              if node -e "JSON.parse(require('fs').readFileSync('${site_dir}site.json', 'utf8'))" 2>/dev/null; then
+                SITES+=("$site_id")
+                echo "✓ Found site: $site_id"
+              else
+                echo "⚠ Invalid site config: $site_id (skipping)"
+              fi
+            fi
+          done
+
+          # Build matrix JSON
+          if [ ${#SITES[@]} -eq 0 ]; then
+            # Fallback to demo if no sites found
+            SITES=("demo")
+            echo "⚠ No sites found, using fallback: demo"
+          fi
+
+          # Create matrix JSON array
+          MATRIX_JSON=$(printf '%s\n' "${SITES[@]}" | jq -R . | jq -sc '.')
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+          echo "count=${#SITES[@]}" >> $GITHUB_OUTPUT
+          echo ""
+          echo "📦 Sites to deploy: ${#SITES[@]}"
+          echo "   ${SITES[*]}"
+
+  # ──────────────────────────────────────────────
+  # Job 2: Code Quality (Lint + Type Check)
+  # ──────────────────────────────────────────────
+  lint:
+    name: 🔍 Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+  # ──────────────────────────────────────────────
+  # Job 3: Tests (Unit + Accessibility)
+  # ──────────────────────────────────────────────
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest (Storybook tests)
+        run: npm run test
+
+      - name: Run Accessibility Tests
+        run: npm run test:a11y
+
+  # ──────────────────────────────────────────────
+  # Job 4: Lighthouse CI Audit
+  # ──────────────────────────────────────────────
+  lighthouse:
+    name: 💡 Lighthouse Audit
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        run: npm run lighthouse
+        env:
+          LHCI_BUILD_CONTEXT__currentHash: ${{ github.sha }}
+          LHCI_BUILD_CONTEXT__branch: ${{ github.head_ref || github.ref_name }}
+          LHCI_BUILD_CONTEXT__commitMessage: ${{ github.event.head_commit.message || 'N/A' }}
+          CHROME_FLAGS: '--no-sandbox --disable-gpu --disable-dev-shm-usage'
+
+      - name: Upload Lighthouse Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 30
+
+      - name: Lighthouse Score Summary
+        if: always()
+        run: |
+          echo "## 💡 Lighthouse Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse Lighthouse JSON reports and build summary table
+          if [ -d ".lighthouseci" ]; then
+            echo "| Page | Performance | Accessibility | Best Practices | SEO |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-------------|---------------|----------------|-----|" >> $GITHUB_STEP_SUMMARY
+
+            for report in .lighthouseci/lhr-*.json; do
+              if [ -f "$report" ]; then
+                PAGE=$(node -e "const r=require('./$report'); console.log(new URL(r.finalUrl).pathname)")
+                PERF=$(node -e "const r=require('./$report'); console.log(Math.round(r.categories.performance.score * 100))")
+                A11Y=$(node -e "const r=require('./$report'); console.log(Math.round(r.categories.accessibility.score * 100))")
+                BP=$(node -e "const r=require('./$report'); console.log(Math.round(r.categories['best-practices'].score * 100))")
+                SEO=$(node -e "const r=require('./$report'); console.log(Math.round(r.categories.seo.score * 100))")
+
+                # Color code scores
+                format_score() {
+                  if [ "$1" -ge 90 ]; then echo "✅ $1"
+                  elif [ "$1" -ge 50 ]; then echo "⚠️ $1"
+                  else echo "❌ $1"
+                  fi
+                }
+
+                echo "| $PAGE | $(format_score $PERF) | $(format_score $A11Y) | $(format_score $BP) | $(format_score $SEO) |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Core Web Vitals summary
+            echo "### 🎯 Core Web Vitals" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| First Contentful Paint (FCP) | ≤ 1.8s | ⏱️ Measured |" >> $GITHUB_STEP_SUMMARY
+            echo "| Largest Contentful Paint (LCP) | ≤ 2.5s | ⏱️ Measured |" >> $GITHUB_STEP_SUMMARY
+            echo "| Cumulative Layout Shift (CLS) | ≤ 0.1 | ⏱️ Measured |" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Blocking Time (TBT) | ≤ 200ms | ⏱️ Measured |" >> $GITHUB_STEP_SUMMARY
+            echo "| Time to Interactive (TTI) | ≤ 3.8s | ⏱️ Measured |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No Lighthouse reports found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Target Thresholds" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Target |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ≥ 90 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ≥ 90 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices | ≥ 90 |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO | ≥ 90 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reports have been uploaded as artifacts. Download them to view detailed scores and recommendations." >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────
+  # Job 5: Build & Deploy All Sites (dynamic matrix)
+  # ──────────────────────────────────────────────
+  build-and-deploy:
+    name: 🏗️ Build & Deploy (${{ matrix.site }})
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint, test, lighthouse, detect-sites]
+    strategy:
+      fail-fast: false
+      matrix:
+        site: ${{ fromJson(needs.detect-sites.outputs.matrix) }}
+
+    environment:
+      name: production-${{ matrix.site }}
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js for ${{ matrix.site }}
+        run: npm run build
+        env:
+          SITE_ID: ${{ matrix.site }}
+          NEXT_PUBLIC_SITE_ID: ${{ matrix.site }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Vercel Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (Production)
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Output Deployment URL
+        run: |
+          echo "🚀 **${{ matrix.site }}** deployed to ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────
+  # Job 6: Preview Deployments (PR only, dynamic matrix)
+  # ──────────────────────────────────────────────
+  deploy-preview:
+    name: 🔗 Deploy Preview (${{ matrix.site }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [lint, test, lighthouse, detect-sites]
+    strategy:
+      fail-fast: false
+      matrix:
+        site: ${{ fromJson(needs.detect-sites.outputs.matrix) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js for ${{ matrix.site }}
+        run: npm run build
+        env:
+          SITE_ID: ${{ matrix.site }}
+          NEXT_PUBLIC_SITE_ID: ${{ matrix.site }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Vercel Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel (Preview)
+        id: deploy-preview
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with Preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Preview Deployment Ready!**\n\n**Site:** ${{ matrix.site }}\n**URL:** ${{ steps.deploy-preview.outputs.url }}\n\nCommit: ${context.payload.pull_request.head.sha.substring(0, 7)}\n\nThis preview will be automatically updated on each push to this PR.`
+            })

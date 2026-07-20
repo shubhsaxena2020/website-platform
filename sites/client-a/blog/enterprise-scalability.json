@@ -1,0 +1,11 @@
+{
+  "slug": "enterprise-scalability",
+  "title": "Building for Enterprise Scale: Lessons from the Trenches",
+  "description": "Key insights from building platforms that serve millions of users daily.",
+  "date": "2024-12-20",
+  "author": "Jordan Lee",
+  "authorRole": "CTO, Nexus Digital",
+  "tags": ["Enterprise", "Scalability", "Architecture"],
+  "readingTime": "7 min read",
+  "content": "## The Scale Challenge\n\nWhen your platform serves millions of users, every architectural decision matters. Here's what we've learned building enterprise-grade systems."
+}

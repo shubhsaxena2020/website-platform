@@ -1,0 +1,110 @@
+{
+  "id": "demo",
+  "name": "Demo Website",
+  "description": "A demo website showcasing the platform capabilities",
+  "domain": "demo.example.com",
+  "url": "https://demo.example.com",
+
+  "brand": {
+    "logo": "/sites/demo/logo.svg",
+    "favicon": "/sites/demo/favicon.ico",
+    "ogImage": "/sites/demo/og-image.png"
+  },
+
+  "theme": {
+    "colors": {
+      "primary": "#007AFF",
+      "secondary": "#5856D6",
+      "accent": "#FF2D55",
+      "background": "#FFFFFF",
+      "surface": "#F2F2F7",
+      "text": "#1C1C1E",
+      "textSecondary": "#8E8E93"
+    },
+    "darkColors": {
+      "primary": "#0A84FF",
+      "secondary": "#5E5CE6",
+      "accent": "#FF375F",
+      "background": "#1C1C1E",
+      "surface": "#2C2C2E",
+      "text": "#FFFFFF",
+      "textSecondary": "#8E8E93"
+    },
+    "fonts": {
+      "heading": "Inter",
+      "body": "Inter"
+    }
+  },
+
+  "content": {
+    "title": "Demo Website",
+    "tagline": "Apple-tier website creation platform",
+    "description": "A demo website built with the website creation platform",
+    "company": {
+      "name": "Demo Corp",
+      "description": "Building the future of web development"
+    },
+    "hero": {
+      "badge": "Welcome",
+      "title": "Build Beautiful Websites",
+      "subtitle": "Create industry-level websites with pixel-perfect design and smooth animations.",
+      "cta": {
+        "primary": "Get Started",
+        "secondary": "Learn More"
+      }
+    },
+    "features": [
+      {
+        "title": "Pixel-Perfect Design",
+        "description": "Every component follows Apple-tier design principles.",
+        "icon": "palette"
+      },
+      {
+        "title": "Lightning Fast",
+        "description": "Optimized for Core Web Vitals and performance.",
+        "icon": "zap"
+      },
+      {
+        "title": "Fully Accessible",
+        "description": "WCAG 2.1 AA compliant with semantic HTML.",
+        "icon": "users"
+      }
+    ],
+    "navigation": [
+      { "label": "Home", "href": "/" },
+      { "label": "About", "href": "/about" },
+      { "label": "Services", "href": "/services" },
+      { "label": "Blog", "href": "/blog" },
+      { "label": "Contact", "href": "/contact" }
+    ],
+    "footer": {
+      "copyright": "© 2026 Demo Corp. All rights reserved.",
+      "links": [
+        { "label": "Privacy", "href": "/privacy" },
+        { "label": "Terms", "href": "/terms" }
+      ]
+    }
+  },
+
+  "seo": {
+    "titleTemplate": "%s | Demo Website",
+    "defaultTitle": "Demo Website - Apple-tier website creation platform",
+    "description": "A demo website built with the website creation platform",
+    "keywords": ["website", "design", "development", "demo"],
+    "ogType": "website"
+  },
+
+  "analytics": {
+    "googleAnalytics": "",
+    "vercelAnalytics": true,
+    "sentryDsn": ""
+  },
+
+  "features": {
+    "darkMode": true,
+    "blog": true,
+    "contactForm": true,
+    "newsletter": false,
+    "testimonials": true
+  }
+}

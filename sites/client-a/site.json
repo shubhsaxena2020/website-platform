@@ -1,0 +1,110 @@
+{
+  "id": "client-a",
+  "name": "Nexus Digital",
+  "description": "Enterprise-grade digital solutions for modern businesses",
+  "domain": "nexusdigital.io",
+  "url": "https://nexusdigital.io",
+
+  "brand": {
+    "logo": "/sites/client-a/logo.svg",
+    "favicon": "/sites/client-a/favicon.ico",
+    "ogImage": "/sites/client-a/og-image.png"
+  },
+
+  "theme": {
+    "colors": {
+      "primary": "#6366F1",
+      "secondary": "#8B5CF6",
+      "accent": "#F59E0B",
+      "background": "#FFFFFF",
+      "surface": "#F8FAFC",
+      "text": "#0F172A",
+      "textSecondary": "#475569"
+    },
+    "darkColors": {
+      "primary": "#818CF8",
+      "secondary": "#A78BFA",
+      "accent": "#FBBF24",
+      "background": "#0F172A",
+      "surface": "#1E293B",
+      "text": "#F8FAFC",
+      "textSecondary": "#94A3B8"
+    },
+    "fonts": {
+      "heading": "Inter",
+      "body": "Inter"
+    }
+  },
+
+  "content": {
+    "title": "Nexus Digital",
+    "tagline": "Enterprise-grade digital solutions",
+    "description": "We build scalable, high-performance digital platforms for businesses that demand excellence.",
+    "company": {
+      "name": "Nexus Digital",
+      "description": "Empowering businesses with cutting-edge technology and design."
+    },
+    "hero": {
+      "badge": "Now Accepting Projects",
+      "title": "Scale Your Digital Presence",
+      "subtitle": "We build enterprise-grade platforms that combine stunning design with rock-solid architecture. Your vision, engineered to perform.",
+      "cta": {
+        "primary": "Start a Project",
+        "secondary": "View Our Work"
+      }
+    },
+    "features": [
+      {
+        "title": "Enterprise Architecture",
+        "description": "Scalable systems built to handle millions of users with zero downtime.",
+        "icon": "rocket"
+      },
+      {
+        "title": "Performance First",
+        "description": "Sub-second load times and 99.99% uptime guaranteed.",
+        "icon": "zap"
+      },
+      {
+        "title": "Security Built-In",
+        "description": "SOC 2 compliant with end-to-end encryption and RBAC.",
+        "icon": "users"
+      }
+    ],
+    "navigation": [
+      { "label": "Home", "href": "/" },
+      { "label": "Solutions", "href": "/services" },
+      { "label": "Case Studies", "href": "/about" },
+      { "label": "Blog", "href": "/blog" },
+      { "label": "Contact", "href": "/contact" }
+    ],
+    "footer": {
+      "copyright": "© 2026 Nexus Digital. All rights reserved.",
+      "links": [
+        { "label": "Privacy Policy", "href": "/privacy" },
+        { "label": "Terms of Service", "href": "/terms" }
+      ]
+    }
+  },
+
+  "seo": {
+    "titleTemplate": "%s | Nexus Digital",
+    "defaultTitle": "Nexus Digital - Enterprise-grade digital solutions",
+    "description": "We build scalable, high-performance digital platforms for businesses that demand excellence.",
+    "keywords": ["enterprise", "digital solutions", "web development", "scalable architecture"],
+    "ogType": "website"
+  },
+
+  "analytics": {
+    "googleAnalytics": "",
+    "vercelAnalytics": true,
+    "sentryDsn": ""
+  },
+
+  "features": {
+    "darkMode": true,
+    "blog": true,
+    "contactForm": true,
+    "newsletter": true,
+    "testimonials": true
+  }
+}
